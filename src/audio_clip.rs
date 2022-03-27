@@ -1,5 +1,6 @@
 use cpal::{traits::{HostTrait, DeviceTrait, StreamTrait}, Sample};
 use color_eyre::eyre::{Result, eyre};
+use dasp::{interpolate::linear::Linear, signal, Signal};
 use std::sync::{Arc, Mutex};
 
 ///Raw Mono Audio Data
@@ -184,6 +185,19 @@ impl AudioClip
             return self.clone();
         }
 
-        todo!();
+        let mut signal = signal::from_iter(self.samples.iter().copied());
+        let a = signal.next();
+        let b = signal.next();
+
+        let linear = Linear::new(a, b);
+
+        AudioClip
+        {
+            samples: signal.from_hz_to_hz(linear, self.sample_rate as f64, sample_rate as f64)
+                        .take(self.samples.len() * (sample_rate as usize) / self.sample_rate as usize)
+                        .collect(),
+
+            sample_rate,
+        }
     }
 }

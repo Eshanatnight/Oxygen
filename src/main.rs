@@ -1,5 +1,6 @@
 #[allow(non_snake_case)]
 mod audio_clip;
+mod db;
 use color_eyre::eyre::Result;
 use clap::{Parser, Subcommand};
 use audio_clip::AudioClip;
