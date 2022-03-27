@@ -1,0 +1,9 @@
+# IDE and Text Editor Stuff
+/.idea
+/.vs
+/.vscode
+
+# Cargo Stuff
+
+# Binaries
+/target
