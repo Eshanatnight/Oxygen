@@ -3,6 +3,7 @@ use color_eyre::eyre::{Result, eyre};
 use std::sync::{Arc, Mutex};
 
 ///Raw Mono Audio Data
+#[derive(Clone)]
 pub struct AudioClip
 {
     samples: Vec<f32>,
@@ -108,7 +109,8 @@ impl AudioClip
         println!("Begining Playback...");
 
         type StateHandle = Arc<Mutex<Option<(usize, Vec<f32>)>>>;
-        let state = (0, self.samples.clone());
+        let sample_rate = config.sample_rate().0;
+        let state = (0, self.resample(sample_rate).samples);
         let state = Arc::new(Mutex::new(Some(state)));
         let channels = config.channels();
 
@@ -172,5 +174,16 @@ impl AudioClip
 
 
         Ok(())
+    }
+
+
+    pub fn resample(&self, sample_rate: u32) -> AudioClip
+    {
+        if self.sample_rate == sample_rate
+        {
+            return self.clone();
+        }
+
+        todo!();
     }
 }
