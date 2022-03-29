@@ -7,3 +7,9 @@
 
 # Binaries
 /target
+
+# Things im using to keep track of myself
+*.txt
+
+# database sqlite stuff
+/data
