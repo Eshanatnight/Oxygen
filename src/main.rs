@@ -1,10 +1,13 @@
 #[allow(non_snake_case)]
+
 mod audio_clip;
 mod db;
-use color_eyre::eyre::Result;
-use clap::{Parser, Subcommand};
-use audio_clip::AudioClip;
 
+use db::Db;
+use audio_clip::AudioClip;
+use clap::{Parser, Subcommand};
+use color_eyre::eyre::Result;
+use chrono::prelude::*;
 #[derive(Debug, Parser)]
 #[clap(name = "Oxygen")]
 #[clap(about = "Voice Journal Tool", long_about = None)]
@@ -51,14 +54,15 @@ fn main() -> Result<()>
 {
     color_eyre::install()?;
     let args = Cli::parse();
+    let db = Db::open()?;
 
     match args.command
     {
         Commands::Record {name } =>
         {
-            let name = name.unwrap_or_else(|| "untitled".to_string());
-            let clip = AudioClip::record()?;
-            clip.play()?;
+            let name = name.unwrap_or_else(|| Local::now().format("%Y-%m-%d_%H-%M-%S").to_string());
+            let mut clip = AudioClip::record(name)?;
+            db.save(&mut clip)?;
             todo!()
         }
 
