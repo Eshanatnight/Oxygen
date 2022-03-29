@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use cpal::{traits::{HostTrait, DeviceTrait, StreamTrait}, Sample};
 use color_eyre::eyre::{Result, eyre};
 use dasp::{interpolate::linear::Linear, signal, Signal};
@@ -7,15 +8,20 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct AudioClip
 {
-    samples: Vec<f32>,
-    sample_rate: u32,   // Most Common -> 48kHz : 44.1kHz
+    pub samples: Vec<f32>,
+    pub sample_rate: u32,   // Most Common -> 48kHz : 44.1kHz
+
+    // decided to save the meta data `date-time` to be stored here
+    pub id: Option<usize>,
+    pub name: String,
+    pub date: DateTime<Utc>,
 }
 
 type ClipHandle = Arc<Mutex<Option<AudioClip>>>;
 
 impl AudioClip
 {
-    pub fn record() -> Result<AudioClip>
+    pub fn record(_name: String) -> Result<AudioClip>
     {
         let host = cpal::default_host();
         let device = host.default_input_device()
@@ -26,7 +32,10 @@ impl AudioClip
         let config = device.default_input_config()?;
 
         let clip = AudioClip {
+            id: None,
+            date: Utc::now(),
             samples: Vec::new(),
+            name: _name,
             sample_rate: config.sample_rate().0,
         };
 
@@ -193,6 +202,9 @@ impl AudioClip
 
         AudioClip
         {
+            id: self.id,
+            name: self.name.clone(),
+            date: self.date,
             samples: signal.from_hz_to_hz(linear, self.sample_rate as f64, sample_rate as f64)
                         .take(self.samples.len() * (sample_rate as usize) / self.sample_rate as usize)
                         .collect(),
