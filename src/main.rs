@@ -1,54 +1,45 @@
 #[allow(non_snake_case)]
-
 mod audio_clip;
 mod db;
 
-use db::Db;
 use audio_clip::AudioClip;
+use chrono::prelude::*;
 use clap::{Parser, Subcommand};
 use color_eyre::eyre::Result;
-use chrono::prelude::*;
+use db::Db;
 #[derive(Debug, Parser)]
 #[clap(name = "Oxygen")]
 #[clap(about = "Voice Journal Tool", long_about = None)]
-struct Cli
-{
+struct Cli {
     #[clap(subcommand)]
     command: Commands,
 }
 
 #[derive(Debug, Subcommand)]
-enum Commands
-{
+enum Commands {
     /// Record the voice clip with the default input device untill `ctrl+c` is pressed
-    Record
-    {
+    Record {
         /// name of the audio clip to record, if not specified, the current date and time will be used
         name: Option<String>,
     },
 
     /// List all the audio clips in the database
-    List
-    {},
+    List {},
 
     /// play the clip with the specified name
     #[clap(arg_required_else_help = true)]
-    Play
-    {
+    Play {
         /// Name of the audio clip to play
         name: String,
     },
 
     /// delete the clip with the specified name
     #[clap(arg_required_else_help = true)]
-    Delete
-    {
+    Delete {
         /// Name of the audio clip to delete
         name: String,
     },
-
 }
-
 
 fn main() -> Result<()>
 {
@@ -58,29 +49,58 @@ fn main() -> Result<()>
 
     match args.command
     {
-        Commands::Record {name } =>
+        Commands::Record { name } =>
         {
             let name = name.unwrap_or_else(|| Local::now().format("%Y-%m-%d_%H-%M-%S").to_string());
             let mut clip = AudioClip::record(name)?;
             db.save(&mut clip)?;
-            todo!()
+
+            // This call to the play function is here for
+            // debugging purposes. will be removed in the future
+            // but commented out rn
+            // clip.play()?;
         }
 
-        Commands::List {}=>
+        Commands::List {} =>
         {
-            todo!()
+
+            println!("{id:>5}  {name:30} {date:30}" , id="ID", name="Name", date="Date");
+
+            for entry in db.list()?
+            {
+                // ? the DateTime struct will print the date and time in the format
+                // ? "%Y-%m-%d %H:%M:%S"
+                println!(
+                    "{:5}  {:30} {:30}",
+                    entry.clip_id,
+                    entry.clip_name,
+                    entry
+                        .clip_date
+                        .with_timezone(&Local)
+                        .format("%Y-%m-%d %H:%M:%S")
+                        .to_string()
+                );
+            }
         }
 
-        Commands::Play{name} =>
+        Commands::Play { name } =>
         {
-            eprintln!("Play: {}", name);
-            todo!()
+            if let Some(clip) = db.load(&name)?
+            {
+                clip.play()?;
+            }
+
+            else
+            {
+                eprintln!("No clip with the name {} found", name);
+            }
         }
 
-        Commands::Delete{name} =>
+        Commands::Delete { name } =>
         {
-            eprintln!("Delete: {}", name);
-            todo!();
+            db.delete(&name)?;
         }
     }
+
+    Ok(())
 }
