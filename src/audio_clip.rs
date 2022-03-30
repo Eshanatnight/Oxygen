@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use cpal::{traits::{HostTrait, DeviceTrait, StreamTrait}, Sample};
 use color_eyre::eyre::{Result, eyre};
 use dasp::{interpolate::linear::Linear, signal, Signal};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::{Sender, channel}};
 
 ///Raw Mono Audio Data
 #[derive(Clone)]
@@ -95,8 +95,12 @@ impl AudioClip
 
         stream.play()?;
 
-        // Let recording go for roughly three seconds.
-        std::thread::sleep(std::time::Duration::from_secs(3));
+        let (tx, rx) = channel();
+        ctrlc::set_handler(move || tx.send(()).expect("Could not send signal over the chanel..."))?;
+        println!("Press Ctrl-C to stop recording...");
+        rx.recv()?;
+        println!("Got it! Stopping recording...");
+
         drop(stream);
         let clip = clip.lock().unwrap().take().unwrap();
 
@@ -118,9 +122,10 @@ impl AudioClip
 
         println!("Begining Playback...");
 
-        type StateHandle = Arc<Mutex<Option<(usize, Vec<f32>)>>>;
+        type StateHandle = Arc<Mutex<Option<(usize, Vec<f32>, Sender<()>)>>>;
         let sample_rate = config.sample_rate().0;
-        let state = (0, self.resample(sample_rate).samples);
+        let (dtx, drx) = channel::<()>();
+        let state = (0, self.resample(sample_rate).samples, dtx);
         let state = Arc::new(Mutex::new(Some(state)));
         let channels = config.channels();
 
@@ -137,7 +142,7 @@ impl AudioClip
         {
             if let Ok(mut guard) = writer.try_lock()
             {
-                if let Some((i, clip_samples)) = guard.as_mut()
+                if let Some((i, clip_samples, done)) = guard.as_mut()
                 {
                     for frame in output.chunks_mut(channels.into())
                     {
@@ -148,10 +153,17 @@ impl AudioClip
 
                         *i+=1;
                     }
+
+                    if *i >= clip_samples.len()
+                    {
+                        if let Err(_) = done.send(())
+                        {
+                            // Playback has already ended. We will be dead soon.
+                        }
+                    }
                 }
             }
         }
-
 
         let stream = match config.sample_format()
         {
@@ -179,10 +191,7 @@ impl AudioClip
 
         stream.play()?;
 
-        // Let recording go for roughly three seconds.
-        std::thread::sleep(std::time::Duration::from_secs(3));
-
-
+        drx.recv()?;
         Ok(())
     }
 
