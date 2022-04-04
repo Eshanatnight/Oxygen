@@ -32,6 +32,8 @@ Just use the cargo build tool.
 | list | list all the clips |
 | delete | delete the clip with the specified name. The name needs to be passed as a string |
 |import| takes a path and the name of the clip, then imports the clip. If the name is not specified, the path is used|
+|export| takes the path to where the file is to be exported and a name. The path should end in `.wav`|
+|export-all| takes a path. `all` subcommand exports all the clips to the specified path|
 
 ## Known Issues
 
