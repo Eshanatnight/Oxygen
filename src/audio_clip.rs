@@ -15,6 +15,8 @@ use symphonia::core::probe::Hint;
 use std::fs::File;
 use std::path::Path;
 
+use hound;
+
 ///Raw Mono Audio Data
 #[derive(Clone)]
 pub struct AudioClip
@@ -368,5 +370,31 @@ impl AudioClip
         }
 
         Ok(clip)
+    }
+
+
+    pub fn export(&self, path: &str) -> Result<()>
+    {
+        if !path.ends_with(".wav")
+        {
+            return Err(eyre!("Expected the path to end with `.wav`.\nPath given : {}", path));
+        }
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: self.sample_rate,
+            bits_per_sample: 32,
+            sample_format: hound::SampleFormat::Float,
+        };
+
+        let mut writer = hound::WavWriter::create(path, spec)?;
+
+        for sample in &self.samples
+        {
+            writer.write_sample(*sample)?;
+        }
+
+        writer.finalize()?;
+
+        Ok(())
     }
 }
