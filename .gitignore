@@ -6,11 +6,13 @@
 # Cargo Stuff
 
 # Binaries
-target
+/target
 
 # Things im using to keep track of myself
 *.txt
 
 # database sqlite stuff
-/data
-tools
+*.sqlite
+
+# Exported Wave Files
+*.wav
