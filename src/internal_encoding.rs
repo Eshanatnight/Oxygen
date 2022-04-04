@@ -4,6 +4,7 @@ use audiopus::{Error as OpusError, ErrorCode as OpusErrorCode, MutSignals, packe
 use color_eyre::{eyre::eyre, Result};
 use crate::audio_clip::AudioClip;
 
+#[allow(dead_code)]
 pub fn encode_v0(samples: &[f32]) -> Vec<u8>
 {
     let mut buf = Vec::with_capacity(samples.len() * 4);
@@ -48,7 +49,7 @@ pub fn decode_v0(bytes: &[u8]) -> Vec<f32>
 pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)>
 {
     let sample_rate :i32 = clip.sample_rate.try_into()?;
-    let mut resampled :AudioClip;
+    let resampled :AudioClip;
     let (samples, sample_rate) = match SampleRate::try_from(sample_rate){
         Ok(sample_rate) => (&clip.samples, sample_rate),
         Err(_) => {
