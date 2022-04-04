@@ -21,7 +21,7 @@ type ClipHandle = Arc<Mutex<Option<AudioClip>>>;
 
 impl AudioClip
 {
-
+    #[allow(dead_code)]
     pub fn new(sample_rate: u32, samples: Vec<f32>, id: Option<usize>, name: String) -> Self
     {
         Self {
