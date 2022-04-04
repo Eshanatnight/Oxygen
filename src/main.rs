@@ -1,6 +1,5 @@
 extern crate core;
 
-#[allow(non_snake_case)]
 mod audio_clip;
 mod db;
 mod internal_encoding;
@@ -56,12 +55,9 @@ fn main() -> Result<()>
         {
             let name = name.unwrap_or_else(|| Local::now().format("%Y-%m-%d_%H-%M-%S").to_string());
             let mut clip = AudioClip::record(name)?;
+
             db.save(&mut clip)?;
 
-            // This call to the play function is here for
-            // debugging purposes. will be removed in the future
-            // but commented out rn
-            // clip.play()?;
         }
 
         Commands::List {} =>
