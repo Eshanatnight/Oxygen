@@ -120,12 +120,12 @@ impl AudioClip
 
         let config = device.default_output_config()?;
 
-        println!("Begining Playback...");
+        println!("Beginning Playback...");
 
         type StateHandle = Arc<Mutex<Option<(usize, Vec<f32>, Sender<()>)>>>;
         let sample_rate = config.sample_rate().0;
-        let (dtx, drx) = channel::<()>();
-        let state = (0, self.resample(sample_rate).samples, dtx);
+        let (done_tx, done_rx) = channel::<()>();
+        let state = (0, self.resample(sample_rate).samples, done_tx);
         let state = Arc::new(Mutex::new(Some(state)));
         let channels = config.channels();
 
@@ -150,7 +150,6 @@ impl AudioClip
                         {
                             *sample = Sample::from(clip_samples.get(*i).unwrap_or(&0f32));
                         }
-
                         *i+=1;
                     }
 
@@ -188,10 +187,9 @@ impl AudioClip
                 err_fn,
             )?,
         };
-
         stream.play()?;
 
-        drx.recv()?;
+        done_rx.recv()?;
         Ok(())
     }
 

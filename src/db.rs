@@ -1,3 +1,4 @@
+use crate::internal_encoding::{decode_v0, encode_v0};
 use color_eyre::eyre::Result;
 use rusqlite::{Connection, params, types::Type};
 use crate::audio_clip::AudioClip;
@@ -19,42 +20,6 @@ pub struct ClipMeta
     pub clip_name: String,
     pub clip_date: DateTime<Utc>,
 }
-
-
-fn encode(samples: &[f32]) -> Vec<u8>
-{
-    let mut buf = Vec::with_capacity(samples.len() * 4);
-
-    for sample in samples
-    {
-        buf.extend_from_slice(&sample.to_be_bytes());
-    }
-
-    buf
-}
-
-fn decode(bytes: &[u8]) -> Vec<f32>
-{
-    let mut samples = Vec::with_capacity(bytes.len() / 4);
-
-    /*
-    // This might work idk
-    for i in 0..bytes.len() / 4
-    {
-        let mut sample = [0u8; 4];
-        sample.copy_from_slice(&bytes[i * 4..(i + 1) * 4]);
-        samples.push(f32::from_be_bytes(sample));
-    }
-    */
-
-    for chunk in bytes.chunks(4)
-    {
-        samples.push(f32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
-    }
-
-    samples
-}
-
 
 impl Db
 {
@@ -105,7 +70,7 @@ impl Db
                 clip.name,
                 clip.date.to_string(),
                 clip.sample_rate,
-                encode(&clip.samples)
+                encode_v0(&clip.samples)
             ]
         )?;
 
@@ -146,7 +111,7 @@ impl Db
                             rusqlite::Error::InvalidColumnType(2, "date".to_string(), Type::Text)
                         })?,
                     sample_rate: row.get(3)?,
-                    samples: decode(&samples),
+                    samples: decode_v0(&samples),
                 })
             })?;
 
