@@ -31,6 +31,7 @@ Just use the cargo build tool.
 | play | play the clip with the specified name. The name needs to be passed as a string |
 | list | list all the clips |
 | delete | delete the clip with the specified name. The name needs to be passed as a string |
+|import| takes a path and the name of the clip, then imports the clip. If the name is not specified, the path is used|
 
 ## Known Issues
 
