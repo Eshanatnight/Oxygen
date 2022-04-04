@@ -21,6 +21,18 @@ type ClipHandle = Arc<Mutex<Option<AudioClip>>>;
 
 impl AudioClip
 {
+
+    pub fn new(sample_rate: u32, samples: Vec<f32>, id: Option<usize>, name: String) -> Self
+    {
+        Self {
+            samples,
+            sample_rate,
+            id,
+            name,
+            date: Utc::now(),
+        }
+    }
+
     pub fn record(_name: String) -> Result<AudioClip>
     {
         let host = cpal::default_host();
