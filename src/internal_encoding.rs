@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use audiopus::{Application, Bitrate, Channels};
 use audiopus::{coder::{Encoder, Decoder}, SampleRate};
 use audiopus::{Error as OpusError, ErrorCode as OpusErrorCode, MutSignals, packet::Packet};

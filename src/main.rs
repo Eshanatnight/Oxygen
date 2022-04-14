@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 extern crate core;
 
 mod audio_clip;
@@ -37,6 +38,9 @@ enum Commands {
         /// Name of the audio clip to play
         name: String,
     },
+
+    /// play the last recorded clip
+    PlayLast{},
 
     /// delete the clip with the specified name
     #[clap(arg_required_else_help = true)]
@@ -99,7 +103,6 @@ fn main() -> Result<()>
 
         Commands::List {} =>
         {
-
             println!("{id:>5}  {name:30} {date:30}" , id="ID", name="Name", date="Date");
 
             for entry in db.list()?
@@ -131,6 +134,20 @@ fn main() -> Result<()>
                 return Err(eyre!("No clip with the name {} found", name));
             }
         }
+
+        Commands::PlayLast{} =>
+        {
+            if let Some(clip) = db.load_last()?
+            {
+                println!("Playing Last Clip");
+                clip.play()?;
+            }
+            else
+            {
+                return Err(eyre!("No Clip found Empty Database"));
+            }
+        }
+
 
         Commands::Delete { name } =>
         {

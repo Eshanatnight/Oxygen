@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use chrono::prelude::*;
 use cpal::{traits::{HostTrait, DeviceTrait, StreamTrait}, Sample};
 use color_eyre::eyre::{Result, eyre};
