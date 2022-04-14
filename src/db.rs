@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use crate::internal_encoding::{decode_v0, encode_v1, decode_v1};
 use color_eyre::eyre::Result;
 use rusqlite::{Connection, params, types::Type};
@@ -21,6 +22,22 @@ pub struct ClipMeta
     pub clip_date: DateTime<Utc>,
 }
 
+
+// Checks if a specified file exists or not
+fn init_file_structure(path: &str)
+{
+    let flag = std::path::Path::new(path).exists();
+
+    if !flag
+    {
+        // create a directory
+        std::fs::create_dir_all("data").expect("Failed to create directory");
+        // create a file
+        std::fs::File::create(path).unwrap();
+    }
+}
+
+
 impl Db
 {
     // Connection function that connects to an sqlite database file
@@ -36,6 +53,9 @@ impl Db
             |-bin
             |-data
         */
+
+        init_file_structure("data/oxygen.sqlite");
+
         let connection = Connection::open("data/oxygen.sqlite")?;
 
         let user_version: u32 = connection.query_row(
@@ -198,6 +218,71 @@ impl Db
         {
             None
         })
+    }
+
+    // get the id of the last recorded clip since we are using
+    // an auto increment id, we can just get the max id
+    fn get_last_id(&self) -> Result<u32, rusqlite::Error>
+    {
+        let id = self.0.query_row(
+            "SELECT MAX(id) FROM clips",
+            [],
+            |row| row.get(0)
+        );
+
+        id
+    }
+
+    // Load the last clip
+    pub fn load_last(&self) -> Result<Option<AudioClip>>
+    {
+        let last_clip_id = self.get_last_id()?;
+
+        let mut stmt = self
+        .0
+        .prepare
+        (
+            "SELECT id, name, date, sample_rate, opus
+            FROM clips
+            WHERE id = ?1
+            "
+        )?;
+
+        let mut clip_iter = stmt.query_map([last_clip_id], |row|
+        {
+            let _date: String = row.get(2)?;  // we need to convert this into a `DateTime` type
+            let sample_rate: u32 = row.get(3)?;
+            let bytes: Vec<u8> = row.get(4)?;
+            let samples = decode_v1(sample_rate, &bytes)
+            .map_err(|_| {
+                    rusqlite::Error::InvalidColumnType(3, "opus".to_string(), Type::Blob)
+                })?;
+
+            Ok(AudioClip::new(
+                sample_rate,
+                samples,
+                Some(last_clip_id as usize),
+                row.get(1)?,
+                _date.parse().map_err(|_|
+                {
+                    rusqlite::Error::InvalidColumnType(2, "date".to_string(), Type::Text)
+                })?)
+            )
+        })?;
+
+        // Basically we will check if our iterator is empty or no
+        // i.e. if it has a audio clip or not, if it is there return it
+        // else return None
+        Ok(if let Some(clip) = clip_iter.next()
+        {
+            Some(clip?)
+        }
+
+        else
+        {
+            None
+        })
+
     }
 
 
