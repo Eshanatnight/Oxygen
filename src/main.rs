@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-extern crate core;
 
 mod audio_clip;
 mod db;
