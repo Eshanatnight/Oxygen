@@ -9,7 +9,7 @@ use std::ffi::OsStr;
 use audio_clip::AudioClip;
 use chrono::prelude::*;
 use clap::{Parser, Subcommand};
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::{Result, eyre::eyre};
 use db::Db;
 
 #[derive(Debug, Parser)]
@@ -39,7 +39,7 @@ enum Commands {
     },
 
     /// play the last recorded clip
-    PlayLast{},
+    PlayLast {},
 
     /// delete the clip with the specified name
     #[clap(arg_required_else_help = true)]
@@ -50,62 +50,58 @@ enum Commands {
 
     /// Takes a path and a name and imports the file to the database
     #[clap(arg_required_else_help = true)]
-    Import{
+    Import {
         /// Name of the path as a unicode string
         path: String,
         /// name of the file to import
-        name: Option<String>
+        name: Option<String>,
     },
 
     /// Export the clip with the specified name to the specified path
     /// as a wav file
     #[clap(arg_required_else_help = true)]
-    Export
-    {
+    Export {
         /// Name of the audio clip to export
         name: String,
         /// Name of the path as a unicode string
-        path: String
+        path: String,
     },
 
     /// Exports all the clips in the database to the specified path
     /// of the folder to export the wav files
     #[clap(arg_required_else_help = true)]
-    ExportAll
-    {
-        folder: String
-    },
+    ExportAll { folder: String },
 }
 
-fn main() -> Result<()>
-{
+fn main() -> Result<()> {
     color_eyre::install()?;
     let args = Cli::parse();
     let db = Db::open()?;
 
-    match args.command
-    {
-        Commands::Record { name } =>
-        {
+    match args.command {
+        Commands::Record { name } => {
             let name = name.unwrap_or_else(|| Local::now().format("%Y-%m-%d_%H-%M-%S").to_string());
 
-            if db.load(&name)?.is_some()
-            {
-                return Err(eyre!("Clip with this name already exists. Please rename the clip"));
+            if db.load(&name)?.is_some() {
+                return Err(eyre!(
+                    "Clip with this name already exists. Please rename the clip"
+                ));
             }
 
             let mut clip = AudioClip::record(name)?;
 
             db.save(&mut clip)?;
-
         }
 
-        Commands::List {} =>
-        {
-            println!("{id:>5}  {name:30} {date:30}" , id="ID", name="Name", date="Date");
+        Commands::List {} => {
+            println!(
+                "{id:>5}  {name:30} {date:30}",
+                id = "ID",
+                name = "Name",
+                date = "Date"
+            );
 
-            for entry in db.list()?
-            {
+            for entry in db.list()? {
                 // ? the DateTime struct will print the date and time in the format
                 // ? "%Y-%m-%d %H:%M:%S"
                 println!(
@@ -121,84 +117,61 @@ fn main() -> Result<()>
             }
         }
 
-        Commands::Play { name } =>
-        {
-            if let Some(clip) = db.load(&name)?
-            {
+        Commands::Play { name } => {
+            if let Some(clip) = db.load(&name)? {
                 clip.play()?;
-            }
-
-            else
-            {
+            } else {
                 return Err(eyre!("No clip with the name {} found", name));
             }
         }
 
-        Commands::PlayLast{} =>
-        {
-            if let Some(clip) = db.load_last()?
-            {
+        Commands::PlayLast {} => {
+            if let Some(clip) = db.load_last()? {
                 println!("Playing Last Clip");
                 clip.play()?;
-            }
-            else
-            {
+            } else {
                 return Err(eyre!("No Clip found Empty Database"));
             }
         }
 
-
-        Commands::Delete { name } =>
-        {
+        Commands::Delete { name } => {
             db.delete(&name)?;
         }
 
-        Commands::Import{path, name} =>
-        {
-            let name = match name
-            {
+        Commands::Import { path, name } => {
+            let name = match name {
                 Some(name) => name,
 
-                None =>
-                {
-                    std::path::Path::new(&path)
+                None => std::path::Path::new(&path)
                     .file_stem()
                     .ok_or_else(|| eyre!("Invalid Path"))?
                     .to_str()
                     .ok_or_else(|| eyre!("Invalid Path not utf8"))?
-                    .to_string()
-                }
-
+                    .to_string(),
             };
 
-            if db.load(&name)?.is_some()
-            {
-                return Err(eyre!("Clip with this name already exists. Please rename the file"));
+            if db.load(&name)?.is_some() {
+                return Err(eyre!(
+                    "Clip with this name already exists. Please rename the file"
+                ));
             }
 
             let mut clip = AudioClip::import(name, path)?;
             db.save(&mut clip)?;
         }
 
-        Commands::Export { name, path } =>
-        {
-            if let Some(clip) = db.load(&name)?
-            {
+        Commands::Export { name, path } => {
+            if let Some(clip) = db.load(&name)? {
                 clip.export(&path)?;
-            }
-
-            else
-            {
+            } else {
                 return Err(eyre!("No clip with the name {} found", name));
             }
         }
 
-        Commands::ExportAll { folder } =>
-        {
+        Commands::ExportAll { folder } => {
             let path = std::path::Path::new(&folder);
 
-            if !path.exists()
-            {
+            if !path.exists() {
                 println!("Creating folder {}", folder);
 
                 std::fs::create_dir(path)?;
@@ -206,34 +179,34 @@ fn main() -> Result<()>
 
             let mut children = path.read_dir()?;
 
-            if children.next().is_some()
-            {
-                return Err(eyre!("Folder {} is not empty.\nExpected an empty directory", folder));
+            if children.next().is_some() {
+                return Err(eyre!(
+                    "Folder {} is not empty.\nExpected an empty directory",
+                    folder
+                ));
             }
 
-            for entry in db.list()?
-            {
-                if let Some(clip) = db.load(&entry.clip_name)?
-                {
+            for entry in db.list()? {
+                if let Some(clip) = db.load(&entry.clip_name)? {
                     let safe_name = std::path::Path::new(&entry.clip_name)
-                    .file_name()
-                    .unwrap_or_else( || OsStr::new("invalid"))
-                    .to_str()
-                    .ok_or_else(|| eyre!("Invalid path.\nNot valid utf8"))?
-                    .to_string();
+                        .file_name()
+                        .unwrap_or_else(|| OsStr::new("invalid"))
+                        .to_str()
+                        .ok_or_else(|| eyre!("Invalid path.\nNot valid utf8"))?
+                        .to_string();
 
-                    let export_path = path.join(
-                        std::path::Path::new(&format!("{}_{}.wav",safe_name, entry.clip_id)));
+                    let export_path = path.join(std::path::Path::new(&format!(
+                        "{}_{}.wav",
+                        safe_name, entry.clip_id
+                    )));
 
-                    let export_path = export_path.as_path()
+                    let export_path = export_path
+                        .as_path()
                         .to_str()
                         .ok_or_else(|| eyre!("Invalid path.\nNot valid utf8"))?;
 
-                        clip.export(&export_path)?;
-                }
-
-                else
-                {
+                    clip.export(&export_path)?;
+                } else {
                     return Err(eyre!("{} clip was removed during export", entry.clip_name));
                 }
             }

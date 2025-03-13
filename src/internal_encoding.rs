@@ -1,25 +1,25 @@
 #![allow(non_snake_case)]
-use audiopus::{Application, Bitrate, Channels};
-use audiopus::{coder::{Encoder, Decoder}, SampleRate};
-use audiopus::{Error as OpusError, ErrorCode as OpusErrorCode, MutSignals, packet::Packet};
-use color_eyre::{eyre::eyre, Result};
 use crate::audio_clip::AudioClip;
+use audiopus::{Application, Bitrate, Channels};
+use audiopus::{Error as OpusError, ErrorCode as OpusErrorCode, MutSignals, packet::Packet};
+use audiopus::{
+    SampleRate,
+    coder::{Decoder, Encoder},
+};
+use color_eyre::{Result, eyre::eyre};
 
 #[allow(dead_code)]
-pub fn encode_v0(samples: &[f32]) -> Vec<u8>
-{
+pub fn encode_v0(samples: &[f32]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(samples.len() * 4);
 
-    for sample in samples
-    {
+    for sample in samples {
         buf.extend_from_slice(&sample.to_be_bytes());
     }
 
     buf
 }
 
-pub fn decode_v0(bytes: &[u8]) -> Vec<f32>
-{
+pub fn decode_v0(bytes: &[u8]) -> Vec<f32> {
     let mut samples = Vec::with_capacity(bytes.len() / 4);
 
     /*
@@ -32,8 +32,7 @@ pub fn decode_v0(bytes: &[u8]) -> Vec<f32>
     }
     */
 
-    for chunk in bytes.chunks(4)
-    {
+    for chunk in bytes.chunks(4) {
         samples.push(f32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
     }
 
@@ -47,11 +46,10 @@ pub fn decode_v0(bytes: &[u8]) -> Vec<f32>
 ///    - for each packet
 ///     -2 bytes, number of bytes in packet as u16 in big endian
 ///     - the raw packet
-pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)>
-{
-    let sample_rate :i32 = clip.sample_rate.try_into()?;
-    let resampled :AudioClip;
-    let (samples, sample_rate) = match SampleRate::try_from(sample_rate){
+pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)> {
+    let sample_rate: i32 = clip.sample_rate.try_into()?;
+    let resampled: AudioClip;
+    let (samples, sample_rate) = match SampleRate::try_from(sample_rate) {
         Ok(sample_rate) => (&clip.samples, sample_rate),
         Err(_) => {
             resampled = clip.resample(48000);
@@ -77,30 +75,25 @@ pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)>
         output_i += 4;
     }
 
-    while samples_i < samples.len()
-    {
+    while samples_i < samples.len() {
         match encoder.encode_float(
-        if samples_i + frame_size < samples.len()
-        {
-            &samples[samples_i..(samples_i + frame_size)]
-        }
-        else
-        {
-            end_buffer[..(samples.len() - samples_i)].copy_from_slice(
-                &samples[samples_i..((samples.len() - samples_i) + samples_i)],
-            );
-            /* possibly less efficient
-            for i in 0..(samples.len() - samples_i)
-            {
-                end_buffer[i] = samples[samples_i + i];
-            }*/
+            if samples_i + frame_size < samples.len() {
+                &samples[samples_i..(samples_i + frame_size)]
+            } else {
+                end_buffer[..(samples.len() - samples_i)].copy_from_slice(
+                    &samples[samples_i..((samples.len() - samples_i) + samples_i)],
+                );
+                /* possibly less efficient
+                for i in 0..(samples.len() - samples_i)
+                {
+                    end_buffer[i] = samples[samples_i + i];
+                }*/
 
-            &end_buffer
-        }, &mut output[output_i + 2..])
-
-        {
-            Ok(pkt_len) =>
-            {
+                &end_buffer
+            },
+            &mut output[output_i + 2..],
+        ) {
+            Ok(pkt_len) => {
                 samples_i += frame_size;
                 let bytes = u16::try_from(pkt_len)?.to_be_bytes();
                 output[output_i..(output_i + 2)].copy_from_slice(&bytes);
@@ -111,14 +104,14 @@ pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)>
                 */
                 output_i += pkt_len + 2;
             }
-            Err(OpusError::Opus(OpusErrorCode::BufferTooSmall)) =>
-            {
-                eprintln!("Needed to increase the buffer size, compression is working less than expected");
+            Err(OpusError::Opus(OpusErrorCode::BufferTooSmall)) => {
+                eprintln!(
+                    "Needed to increase the buffer size, compression is working less than expected"
+                );
                 output.resize(output.len() * 2, 0);
             }
 
-            Err(e) =>
-            {
+            Err(e) => {
                 return Err(eyre!(e));
             }
         }
@@ -128,10 +121,8 @@ pub fn encode_v1(clip: &AudioClip) -> Result<(u32, Vec<u8>)>
     Ok((sample_rate as u32 as u32, output))
 }
 
-
-pub fn decode_v1(sample_rate: u32, bytes: &[u8]) -> Result<Vec<f32>>
-{
-    let sample_rate :i32 = sample_rate.try_into()?;
+pub fn decode_v1(sample_rate: u32, bytes: &[u8]) -> Result<Vec<f32>> {
+    let sample_rate: i32 = sample_rate.try_into()?;
     let sample_rate = SampleRate::try_from(sample_rate)?;
 
     let mut decoder = Decoder::new(sample_rate, Channels::Mono)?;
@@ -139,37 +130,32 @@ pub fn decode_v1(sample_rate: u32, bytes: &[u8]) -> Result<Vec<f32>>
     let frame_size = ((sample_rate as i32 / 1000) * 20) as usize;
 
     let mut bytes_i = 0;
-    if bytes.len() < 4
-    {
+    if bytes.len() < 4 {
         return Err(eyre!("Not enough bytes to decode"));
     }
 
-    let num_samples: usize = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]).try_into()?;
+    let num_samples: usize =
+        u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]).try_into()?;
     bytes_i += 4;
 
     let mut samples = vec![0f32; num_samples + frame_size];
     let mut samples_i = 0;
 
-    while bytes_i < bytes.len()
-    {
-        let pkt_len :usize = match (bytes.get(bytes_i), bytes.get(bytes_i + 1))
-        {
+    while bytes_i < bytes.len() {
+        let pkt_len: usize = match (bytes.get(bytes_i), bytes.get(bytes_i + 1)) {
             (Some(&a), Some(&b)) => u16::from_be_bytes([a, b]).into(),
 
-            _ =>
-            {
+            _ => {
                 return Err(eyre!("Not enough bytes to decode"));
             }
         };
         bytes_i += 2;
 
-        if bytes_i + pkt_len > bytes.len()
-        {
+        if bytes_i + pkt_len > bytes.len() {
             return Err(eyre!("Not enough bytes to decode"));
         }
 
-        if samples_i + frame_size > samples.len()
-        {
+        if samples_i + frame_size > samples.len() {
             return Err(eyre!("Not enough samples to decode"));
         }
 
@@ -179,9 +165,10 @@ pub fn decode_v1(sample_rate: u32, bytes: &[u8]) -> Result<Vec<f32>>
             false,
         )?;
 
-        if actual_frame_size != frame_size
-        {
-            return Err(eyre!("Decoded frame size is not the same as the frame size"));
+        if actual_frame_size != frame_size {
+            return Err(eyre!(
+                "Decoded frame size is not the same as the frame size"
+            ));
         }
 
         bytes_i += pkt_len;
