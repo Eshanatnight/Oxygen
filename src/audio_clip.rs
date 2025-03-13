@@ -134,7 +134,7 @@ impl AudioClip {
         })?;
         println!("Press Ctrl-C to stop recording...");
         rx.recv()?;
-        println!("Got it! Stopping recording...");
+        println!("\nGot it! Stopping recording...");
 
         drop(stream);
         let clip = clip.lock().unwrap().take().unwrap();
