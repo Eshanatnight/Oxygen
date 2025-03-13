@@ -81,7 +81,7 @@ impl AudioClip
 
         fn write_input_data<T>(input: &[T], channels: u16, writer: &ClipHandle)
         where
-            T: Sample,
+            T: Sample, f32: cpal::FromSample<T>,
         {
             if let Ok(mut guard) = writer.try_lock()
             {
@@ -89,7 +89,7 @@ impl AudioClip
                 {
                     for frame in input.chunks(channels.into())
                     {
-                        clip.samples.push(frame[0].to_f32());
+                        clip.samples.push(frame[0].to_sample::<f32>());
                     }
                 }
             }
@@ -102,6 +102,7 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_input_data::<f32>(data, channels, &clip_2),
                 err_fn,
+                None,
             )?,
 
             cpal::SampleFormat::I16 => device.build_input_stream
@@ -109,6 +110,7 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_input_data::<i16>(data, channels, &clip_2),
                 err_fn,
+                None,
             )?,
 
             cpal::SampleFormat::U16 => device.build_input_stream
@@ -116,7 +118,9 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_input_data::<u16>(data, channels, &clip_2),
                 err_fn,
+                None,
             )?,
+            _ => return Err(eyre!("Unsupported Sample Format")), // maybe deal with this somewhen
         };
 
         stream.play()?;
@@ -164,7 +168,7 @@ impl AudioClip
 
         fn write_output_data<T>(output: &mut [T], channels: u16, writer: &StateHandle)
         where
-            T: Sample,
+            T: Sample + cpal::FromSample<f32>,
         {
             if let Ok(mut guard) = writer.try_lock()
             {
@@ -174,7 +178,7 @@ impl AudioClip
                     {
                         for sample in frame.iter_mut()
                         {
-                            *sample = Sample::from(clip_samples.get(*i).unwrap_or(&0f32));
+                            *sample = Sample::from_sample(clip_samples.get(*i).unwrap_or(&0f32).to_owned());
                         }
                         *i+=1;
                     }
@@ -194,6 +198,7 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_output_data::<f32>(data, channels, &state),
                 err_fn,
+                None,
             )?,
 
             cpal::SampleFormat::I16 => device.build_output_stream
@@ -201,6 +206,7 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_output_data::<i16>(data, channels, &state),
                 err_fn,
+                None,
             )?,
 
             cpal::SampleFormat::U16 => device.build_output_stream
@@ -208,7 +214,10 @@ impl AudioClip
                 &config.into(),
                 move |data, _: &_| write_output_data::<u16>(data, channels, &state),
                 err_fn,
+                None,
             )?,
+
+            _ => return Err(eyre!("Unsupported Sample Format")), // maybe deal with this somewhen
         };
         stream.play()?;
 

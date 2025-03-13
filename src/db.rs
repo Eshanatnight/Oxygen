@@ -54,9 +54,9 @@ impl Db
             |-data
         */
 
-        init_file_structure("C:/Oxygen/data/oxygen.sqlite");
+        init_file_structure("./data/oxygen.sqlite");
 
-        let connection = Connection::open("C:/Oxygen/data/oxygen.sqlite")?;
+        let connection = Connection::open("./data/oxygen.sqlite")?;
 
         let user_version: u32 = connection.query_row(
             "SELECT user_version FROM pragma_user_version",
