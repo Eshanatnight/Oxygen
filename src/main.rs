@@ -1,5 +1,3 @@
-#![allow(non_snake_case)]
-
 mod audio_clip;
 mod db;
 mod internal_encoding;
