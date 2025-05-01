@@ -19,6 +19,7 @@ pub fn encode_v0(samples: &[f32]) -> Vec<u8> {
     buf
 }
 
+#[allow(dead_code)]
 pub fn decode_v0(bytes: &[u8]) -> Vec<f32> {
     let mut samples = Vec::with_capacity(bytes.len() / 4);
 
